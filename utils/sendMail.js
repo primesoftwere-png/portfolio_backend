@@ -1,18 +1,27 @@
 const nodemailer = require("nodemailer");
 
 
-
 const sendMail = async ({ name, email, services, projectDetail }) => {
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS,
-    },
-  });
+  // Check for required environment variables
+  if (!process.env.MAIL_USER || !process.env.MAIL_PASS || !process.env.RECEIVER_MAIL) {
+    console.error("[sendMail] Missing required environment variables: MAIL_USER, MAIL_PASS, RECEIVER_MAIL");
+    return;
+  }
 
-
-  // transporter.verify() is removed to reduce delay. For production, use a transactional email service (SendGrid, Mailgun, Resend, etc) for best reliability on Vercel.
+  let transporter;
+  try {
+    transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
+      },
+    });
+    await transporter.verify();
+  } catch (err) {
+    console.error("[sendMail] Transporter creation/verification failed:", err.message);
+    return;
+  }
 
   const mailOptions = {
     from: `"Website Inquiry" <${process.env.MAIL_USER}>`,
@@ -81,28 +90,12 @@ const sendMail = async ({ name, email, services, projectDetail }) => {
     `,
   };
 
-  let lastError = null;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      await transporter.sendMail(mailOptions);
-      if (attempt > 1) {
-        console.log(`sendMail succeeded on attempt ${attempt}`);
-      }
-      return true;
-    } catch (err) {
-      lastError = err;
-      console.error(`sendMail attempt ${attempt} failed:`, {
-        message: err.message,
-        stack: err.stack,
-        code: err.code,
-        response: err.response,
-      });
-      // Wait 500ms before retrying
-      if (attempt < 3) await new Promise(res => setTimeout(res, 500));
-    }
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log("[sendMail] Email sent successfully to:", process.env.RECEIVER_MAIL);
+  } catch (err) {
+    console.error("[sendMail] Failed to send email:", err.message);
   }
-  console.error("Failed to send email after 3 attempts", lastError);
-  throw new Error("Failed to send email after 3 attempts: " + lastError?.message);
 };
 
 module.exports = sendMail;

@@ -35,20 +35,20 @@ exports.inquiryHandler = async (req, res) => {
         projectDetail,
       });
 
-      // Respond immediately after saving inquiry
-      res.status(201).json({
+      // Try to send email and log result
+      try {
+        await sendMail({ name, email, services, projectDetail });
+        console.log("[inquiryHandler] Mail send attempted for:", email);
+      } catch (mailError) {
+        console.error("[inquiryHandler] Mail failed:", mailError.message);
+      }
+
+      // Send response after mail attempt
+      return res.status(201).json({
         success: true,
         message: "Inquiry submitted successfully",
         data: inquiry,
       });
-
-      // Send email in the background (do not block response)
-      // For best reliability on Vercel, use a transactional email service (SendGrid, Mailgun, Resend, etc) instead of Gmail.
-      sendMail({ name, email, services, projectDetail })
-        .catch(mailError => {
-          console.error("Mail failed:", mailError);
-        });
-      return;
     }
 
     /* ================= INVALID METHOD ================= */
@@ -58,9 +58,10 @@ exports.inquiryHandler = async (req, res) => {
     });
   } catch (error) {
     console.error("Inquiry API Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Server error. Please try again later.",
-    });
+      res.status(200).json({
+        success: true,
+        data: inquiries,
+      });
+      return; // Prevent further code execution
   }
 };
