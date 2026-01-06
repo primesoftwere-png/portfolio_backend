@@ -35,19 +35,24 @@ exports.inquiryHandler = async (req, res) => {
         projectDetail,
       });
 
-      // Send response immediately
-      res.status(201).json({
-        success: true,
-        message: "Inquiry submitted successfully",
-        data: inquiry,
-      });
-
-      // Send email in background (do not block response)
-      sendMail({ name, email, services, projectDetail })
-        .catch(mailError => {
-          console.error("Mail failed:", mailError.message);
+      // Try to send email, respond with error if mail fails
+      try {
+        await sendMail({ name, email, services, projectDetail });
+        res.status(201).json({
+          success: true,
+          message: "Inquiry submitted successfully",
+          data: inquiry,
         });
-      return; // Prevent further code execution
+      } catch (mailError) {
+        console.error("Mail failed:", mailError);
+        // Optionally, you can delete the inquiry if mail fails
+        // await Inquiry.findByIdAndDelete(inquiry._id);
+        return res.status(500).json({
+          success: false,
+          message: "Inquiry saved but failed to send email. Please try again later.",
+        });
+      }
+      return;
     }
 
     /* ================= INVALID METHOD ================= */
@@ -57,10 +62,9 @@ exports.inquiryHandler = async (req, res) => {
     });
   } catch (error) {
     console.error("Inquiry API Error:", error);
-      res.status(200).json({
-        success: true,
-        data: inquiries,
-      });
-      return; // Prevent further code execution
+    return res.status(500).json({
+      success: false,
+      message: "Server error. Please try again later.",
+    });
   }
 };
