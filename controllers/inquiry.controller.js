@@ -35,23 +35,18 @@ exports.inquiryHandler = async (req, res) => {
         projectDetail,
       });
 
-      // Try to send email, respond with error if mail fails
-      try {
-        await sendMail({ name, email, services, projectDetail });
-        res.status(201).json({
-          success: true,
-          message: "Inquiry submitted successfully",
-          data: inquiry,
+      // Respond immediately after saving inquiry
+      res.status(201).json({
+        success: true,
+        message: "Inquiry submitted successfully",
+        data: inquiry,
+      });
+
+      // Send email in the background (do not block response)
+      sendMail({ name, email, services, projectDetail })
+        .catch(mailError => {
+          console.error("Mail failed:", mailError);
         });
-      } catch (mailError) {
-        console.error("Mail failed:", mailError);
-        // Optionally, you can delete the inquiry if mail fails
-        // await Inquiry.findByIdAndDelete(inquiry._id);
-        return res.status(500).json({
-          success: false,
-          message: "Inquiry saved but failed to send email. Please try again later.",
-        });
-      }
       return;
     }
 
