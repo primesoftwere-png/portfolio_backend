@@ -43,6 +43,7 @@ exports.inquiryHandler = async (req, res) => {
       });
 
       // Send email in the background (do not block response)
+      // For best reliability on Vercel, use a transactional email service (SendGrid, Mailgun, Resend, etc) instead of Gmail.
       sendMail({ name, email, services, projectDetail })
         .catch(mailError => {
           console.error("Mail failed:", mailError);

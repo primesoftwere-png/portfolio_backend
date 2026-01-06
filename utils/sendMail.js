@@ -11,7 +11,8 @@ const sendMail = async ({ name, email, services, projectDetail }) => {
     },
   });
 
-  await transporter.verify();
+
+  // transporter.verify() is removed to reduce delay. For production, use a transactional email service (SendGrid, Mailgun, Resend, etc) for best reliability on Vercel.
 
   const mailOptions = {
     from: `"Website Inquiry" <${process.env.MAIL_USER}>`,
@@ -90,11 +91,17 @@ const sendMail = async ({ name, email, services, projectDetail }) => {
       return true;
     } catch (err) {
       lastError = err;
-      console.error(`sendMail attempt ${attempt} failed:`, err);
+      console.error(`sendMail attempt ${attempt} failed:`, {
+        message: err.message,
+        stack: err.stack,
+        code: err.code,
+        response: err.response,
+      });
       // Wait 500ms before retrying
       if (attempt < 3) await new Promise(res => setTimeout(res, 500));
     }
   }
+  console.error("Failed to send email after 3 attempts", lastError);
   throw new Error("Failed to send email after 3 attempts: " + lastError?.message);
 };
 
