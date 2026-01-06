@@ -1,23 +1,23 @@
 const nodemailer = require("nodemailer");
 
 
+
 const sendMail = async ({ name, email, services, projectDetail }) => {
-  try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
-      },
-    });
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.MAIL_USER,
+      pass: process.env.MAIL_PASS,
+    },
+  });
 
-    await transporter.verify();
+  await transporter.verify();
 
-    const mailOptions = {
-      from: `"Website Inquiry" <${process.env.MAIL_USER}>`,
-      to: process.env.RECEIVER_MAIL,
-      subject: "🚀 New Project Inquiry Received",
-      html: `
+  const mailOptions = {
+    from: `"Website Inquiry" <${process.env.MAIL_USER}>`,
+    to: process.env.RECEIVER_MAIL,
+    subject: "🚀 New Project Inquiry Received",
+    html: `
 <!DOCTYPE html>
 <html>
 <head>
@@ -77,15 +77,25 @@ const sendMail = async ({ name, email, services, projectDetail }) => {
   </table>
 </body>
 </html>
-      `,
-    };
+    `,
+  };
 
-    await transporter.sendMail(mailOptions);
-    return true;
-  } catch (err) {
-    console.error("sendMail error:", err);
-    throw new Error("Failed to send email: " + err.message);
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await transporter.sendMail(mailOptions);
+      if (attempt > 1) {
+        console.log(`sendMail succeeded on attempt ${attempt}`);
+      }
+      return true;
+    } catch (err) {
+      lastError = err;
+      console.error(`sendMail attempt ${attempt} failed:`, err);
+      // Wait 500ms before retrying
+      if (attempt < 3) await new Promise(res => setTimeout(res, 500));
+    }
   }
+  throw new Error("Failed to send email after 3 attempts: " + lastError?.message);
 };
 
 module.exports = sendMail;
